@@ -1,6 +1,6 @@
 /**
  * Flow Proxy Auth - Chrome Extension
- * Connects Google Flow to CLI scripts for image & video generation
+ * Connects Google Flow to CLI scripts for image generation
  */
 
 const PROXY_URL = 'http://localhost:3847';
@@ -154,14 +154,14 @@ async function init() {
 
   if (!proxyStatus.connected && proxyStatus.message === 'Proxy server not running') {
     updateStatus(false, 'Waiting for CLI script...');
-    infoEl.textContent = 'Run generate.mjs or video.mjs first — server starts automatically.';
+    infoEl.textContent = 'Run generate.mjs first — server starts automatically.';
     connectBtn.disabled = false;
     return;
   }
 
   if (proxyStatus.connected) {
     updateStatus(true, proxyStatus.message);
-    infoEl.textContent = 'Ready for image & video generation.';
+    infoEl.textContent = 'Ready for image generation.';
     connectBtn.textContent = 'Reconnect';
   } else {
     updateStatus(false, 'Not connected');

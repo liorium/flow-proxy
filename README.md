@@ -1,20 +1,19 @@
 # Whisk Proxy
 
-**Generate images and videos with Google Flow — completely free. No API key, no paid subscription.**
+**Generate images with Google Imagen 4 — completely free. No API key, no paid subscription.**
 
-Uses Google Labs Flow API with your regular Google account. Chrome extension for one-click auth, CLI scripts for generation.
+Uses Google Labs Flow API with your regular Google account. Chrome extension for one-click auth, CLI script for generation.
 
 ## What is this?
 
-A lightweight CLI tool and AI Agent Skill that generates images and videos using Google's latest models through the Flow API (labs.google).
+A lightweight CLI tool and AI Agent Skill that generates images using Google Imagen 4 through the Flow API (labs.google).
 
 **Key features:**
 - **Free** — only needs a Google account
 - **No dependencies** — just Node.js 18+ and Chrome
 - **One-click auth** — Chrome extension handles tokens automatically
 - **Auto-refresh** — session cookie lasts ~30 days, no hourly re-auth
-- **Multiple models** — Imagen 4, Nano Banana, Reference-to-Image
-- **Video generation** — experimental (Veo 3.1)
+- **Imagen 4** — Google's latest image generation model
 - **AI Agent Skill** — works with Claude Code, Codex, and other AI agents
 
 ## Quick Start
@@ -38,11 +37,8 @@ That's it! Token auto-refreshes for ~30 days.
 ### 3. Generate images
 
 ```bash
-# Default model (Imagen 4), 4 images
+# Default — 4 images, square
 node scripts/generate.mjs -p "a cat astronaut floating in space"
-
-# Nano Banana (fast, creative)
-node scripts/generate.mjs -p "abstract painting in neon colors" -m banana
 
 # Landscape banner
 node scripts/generate.mjs -p "futuristic city skyline at sunset" -r 16:9
@@ -50,50 +46,19 @@ node scripts/generate.mjs -p "futuristic city skyline at sunset" -r 16:9
 # Portrait for stories
 node scripts/generate.mjs -p "anime girl with headphones" -r 9:16
 
-# Save to specific folder
-node scripts/generate.mjs -p "abstract background" -o ./my-images
+# Single image, save to specific folder
+node scripts/generate.mjs -p "abstract background" -c 1 -o ./my-images
 ```
-
-### 4. Generate videos (experimental)
-
-```bash
-# Landscape video (default)
-node scripts/video.mjs -p "a robot walking through a garden"
-
-# Vertical video for reels
-node scripts/video.mjs -p "ocean waves on a beach" -r 9:16
-```
-
-> Video generation may require Google AI Pro ($20/mo) or free credits. The video endpoint is experimental and may not work.
-
-## Image Models
-
-| Model | Flag | Best for |
-|-------|------|----------|
-| **Imagen 4** | `-m imagen4` | Highest quality, photorealistic (default) |
-| **Nano Banana** | `-m banana` | Fast, creative generation |
-| **Reference-to-Image** | `-m r2i` | Style transfer |
 
 ## CLI Options
-
-### generate.mjs
 
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
 | `--prompt` | `-p` | required | Image description (English works best) |
-| `--model` | `-m` | `imagen4` | Model name (see table above) |
 | `--count` | `-c` | `4` | Number of images per request (1-4) |
 | `--ratio` | `-r` | `1:1` | Aspect ratio (see below) |
 | `--output` | `-o` | `.` | Output directory |
 | `--seed` | `-s` | random | Seed for reproducibility |
-
-### video.mjs
-
-| Flag | Short | Default | Description |
-|------|-------|---------|-------------|
-| `--prompt` | `-p` | required | Video description |
-| `--ratio` | `-r` | `16:9` | `16:9` or `9:16` |
-| `--output` | `-o` | `.` | Output directory |
 
 ## Aspect Ratios
 
@@ -114,7 +79,7 @@ node scripts/status.mjs
 ## How It Works
 
 ```
-Chrome Extension              CLI Scripts
+Chrome Extension              CLI Script
      |                             |
      | 1. User clicks "Connect"    |
      |                             |
@@ -146,10 +111,10 @@ Chrome Extension              CLI Scripts
 This project follows the **Agent Skills** standard. Copy the folder to your skills directory:
 
 ```bash
-cp -r whisk-proxy ~/.claude/skills/flow-image-gen
+cp -r whisk-proxy ~/.claude/skills/whisk-proxy
 ```
 
-The AI agent will automatically discover the skill and use it when you ask to generate images or videos.
+The AI agent will automatically discover the skill and use it when you ask to generate images.
 
 ## Security
 
@@ -173,7 +138,7 @@ Your Google account may not have access. Use a personal Google account (not work
 Rate limited. Wait a few minutes and try again.
 
 ### Extension says "Proxy server not running"
-Run `generate.mjs` or `video.mjs` first — the auth server starts automatically.
+Run `generate.mjs` first — the auth server starts automatically.
 
 ## Requirements
 

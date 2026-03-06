@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Flow Proxy Auth",
   "version": "1.0.0",
-  "description": "Connect Google Flow AI to Claude Code for image & video generation",
+  "description": "Connect Google Flow AI to Claude Code for image generation",
   "permissions": ["activeTab", "scripting", "cookies"],
   "host_permissions": ["https://labs.google/*"],
   "action": {
