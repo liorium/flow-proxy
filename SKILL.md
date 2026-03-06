@@ -1,10 +1,11 @@
 ---
-name: flow-image-gen
+name: whisk-proxy
 description: >
   Generate images and videos with Google Flow (Imagen 4, Nano Banana, Veo 3.1) for free.
   No API key, no paid subscription — just a Google account and Chrome extension.
   Use when the user asks to generate, create, or make an image, picture, illustration, logo, banner, avatar, or video.
   Triggers: generate image, create picture, make illustration, generate video, нарисуй, сгенерируй картинку, создай изображение, сделай видео.
+  Do NOT use for image editing, upscaling, background removal, or non-Google AI models (DALL-E, Midjourney, Stable Diffusion).
 ---
 
 # Flow Image & Video Generator
