@@ -1,19 +1,19 @@
 # Whisk Proxy
 
-**Generate images with Google Imagen 4 — completely free. No API key, no paid subscription.**
+**Generate images with Google Imagen 4 and Nano Banana — completely free. No API key, no paid subscription.**
 
 Uses Google Labs Flow API with your regular Google account. Chrome extension for one-click auth, CLI script for generation.
 
 ## What is this?
 
-A lightweight CLI tool and AI Agent Skill that generates images using Google Imagen 4 through the Flow API (labs.google).
+A lightweight CLI tool and AI Agent Skill that generates images using Google's latest models through the Flow API (labs.google).
 
 **Key features:**
 - **Free** — only needs a Google account
 - **No dependencies** — just Node.js 18+ and Chrome
 - **One-click auth** — Chrome extension handles tokens automatically
 - **Auto-refresh** — session cookie lasts ~30 days, no hourly re-auth
-- **Imagen 4** — Google's latest image generation model
+- **3 models** — Imagen 4, Nano Banana, Reference-to-Image
 - **AI Agent Skill** — works with Claude Code, Codex, and other AI agents
 
 ## Quick Start
@@ -37,24 +37,36 @@ That's it! Token auto-refreshes for ~30 days.
 ### 3. Generate images
 
 ```bash
-# Default — 4 images, square
+# Default model (Imagen 4), 4 images
 node scripts/generate.mjs -p "a cat astronaut floating in space"
+
+# Nano Banana (fast, creative)
+node scripts/generate.mjs -p "abstract painting in neon colors" -m banana
+
+# Reference-to-Image (style transfer)
+node scripts/generate.mjs -p "watercolor portrait of a woman" -m r2i
 
 # Landscape banner
 node scripts/generate.mjs -p "futuristic city skyline at sunset" -r 16:9
 
-# Portrait for stories
-node scripts/generate.mjs -p "anime girl with headphones" -r 9:16
-
 # Single image, save to specific folder
 node scripts/generate.mjs -p "abstract background" -c 1 -o ./my-images
 ```
+
+## Models
+
+| Model | Flag | Best for |
+|-------|------|----------|
+| **Imagen 4** | `-m imagen4` | Highest quality, photorealistic (default) |
+| **Nano Banana** | `-m banana` | Fast, creative generation |
+| **Reference-to-Image** | `-m r2i` | Style transfer |
 
 ## CLI Options
 
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
 | `--prompt` | `-p` | required | Image description (English works best) |
+| `--model` | `-m` | `imagen4` | Model: imagen4, banana, r2i |
 | `--count` | `-c` | `4` | Number of images per request (1-4) |
 | `--ratio` | `-r` | `1:1` | Aspect ratio (see below) |
 | `--output` | `-o` | `.` | Output directory |

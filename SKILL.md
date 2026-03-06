@@ -1,7 +1,7 @@
 ---
 name: whisk-proxy
 description: >
-  Generate images with Google Imagen 4 for free via Flow API.
+  Generate images with Google Imagen 4 and Nano Banana for free via Flow API.
   No API key, no paid subscription — just a Google account and Chrome extension.
   Use when the user asks to generate, create, or make an image, picture, illustration, logo, banner, or avatar.
   Triggers: generate image, create picture, make illustration, нарисуй, сгенерируй картинку, создай изображение.
@@ -10,13 +10,19 @@ description: >
 
 # Flow Image Generator
 
-Generate images using **Google Imagen 4** for free. No API key — uses Chrome extension for OAuth.
+Generate images using **Google Imagen 4, Nano Banana, and Reference-to-Image** for free. No API key — uses Chrome extension for OAuth.
 
 ## Quick Start
 
 ```bash
-# Generate 4 images (default)
+# Generate 4 images (Imagen 4, default)
 node {baseDir}/scripts/generate.mjs -p "a cat astronaut floating in space"
+
+# Nano Banana (fast, creative)
+node {baseDir}/scripts/generate.mjs -p "abstract painting in neon colors" -m banana
+
+# Reference-to-Image (style transfer)
+node {baseDir}/scripts/generate.mjs -p "watercolor portrait" -m r2i
 
 # Portrait format, 1 image
 node {baseDir}/scripts/generate.mjs -p "anime girl with headphones" -r 9:16 -c 1
@@ -25,11 +31,20 @@ node {baseDir}/scripts/generate.mjs -p "anime girl with headphones" -r 9:16 -c 1
 node {baseDir}/scripts/generate.mjs -p "sunset over mountains" -o ./images
 ```
 
+## Models
+
+| Model | Flag | Best for |
+|-------|------|----------|
+| Imagen 4 | `-m imagen4` (default) | Highest quality, photorealistic |
+| Nano Banana | `-m banana` | Fast, creative generation |
+| Reference-to-Image | `-m r2i` | Style transfer |
+
 ## Options
 
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
 | `--prompt` | `-p` | required | Image description (English works best) |
+| `--model` | `-m` | `imagen4` | Model: imagen4, banana, r2i |
 | `--count` | `-c` | `4` | Number of images (1-4) |
 | `--ratio` | `-r` | `1:1` | Aspect ratio: `1:1`, `16:9`, `9:16`, `4:3`, `3:4` |
 | `--output` | `-o` | `.` | Output directory |

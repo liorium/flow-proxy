@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Flow Proxy — Image Generator
- * Generate images via Google Flow (Imagen 4)
+ * Generate images via Google Flow (Imagen 4, Nano Banana, Reference-to-Image)
  * No API key, no npm install — just Node.js 18+
  */
 
@@ -14,6 +14,8 @@ const ENDPOINT = 'https://aisandbox-pa.googleapis.com/v1:runImageFx';
 
 const MODELS = {
   'imagen4': 'IMAGEN_3_5',
+  'banana':  'GEM_PIX',
+  'r2i':     'R2I',
 };
 
 const ASPECT_MAP = {
@@ -43,11 +45,17 @@ Usage: node generate.mjs -p "prompt" [options]
 
 Options:
   -p, --prompt   Image description (English works best)      [required]
+  -m, --model    Model: imagen4, banana, r2i                 [default: imagen4]
   -r, --ratio    Aspect ratio: 1:1, 16:9, 9:16, 4:3, 3:4   [default: 1:1]
   -o, --output   Output directory                            [default: .]
   -c, --count    Number of images per request (1-4)          [default: 4]
   -s, --seed     Random seed (for reproducibility)
-  -h, --help     Show this help`);
+  -h, --help     Show this help
+
+Models:
+  imagen4      Imagen 4 (highest quality, default)
+  banana       Nano Banana (fast, creative)
+  r2i          Reference-to-Image (style transfer)`);
   process.exit(values.help ? 0 : 1);
 }
 
