@@ -37,10 +37,9 @@ Token auto-refreshes for ~30 days. After that, repeat step 4.
 ### 3. Find your Project ID (one-time)
 
 1. Open [labs.google/fx/tools/flow](https://labs.google/fx/tools/flow) in Chrome
-2. Open DevTools → **Network** tab
-3. Generate any image on the page
-4. Find the request named `batchGenerateImages`
-5. Copy the UUID from the URL: `/v1/projects/{THIS_UUID}/flowMedia:batchGenerateImages`
+2. Open any project (or create one)
+3. The URL will look like: `https://labs.google/fx/tools/flow/project/7c2f1287-513a-461d-8650-d53082e5949b`
+4. Copy the UUID at the end — that's your project ID
 
 The project ID is saved automatically on first use — no need to provide it again.
 

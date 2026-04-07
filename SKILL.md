@@ -76,7 +76,7 @@ node {baseDir}/scripts/status.mjs
 
 1. Install the Chrome extension from `{baseDir}/extension/` (load unpacked in chrome://extensions)
 2. Open https://labs.google/fx/tools/flow and sign in with Google
-3. Find your project ID: DevTools → Network → generate an image → copy UUID from `batchGenerateImages` request URL
+3. Open any project in Flow — the URL will be `https://labs.google/fx/tools/flow/project/{YOUR_UUID}`. Copy the UUID.
 4. Run: `node {baseDir}/scripts/generate.mjs -p "test" --project-id YOUR_UUID`
 5. Click the Flow Proxy extension icon → "Connect"
 
