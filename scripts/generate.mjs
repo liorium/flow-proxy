@@ -88,10 +88,9 @@ Error: Project ID not found.
 
 Find your project ID:
   1. Open https://labs.google/fx/tools/flow in Chrome
-  2. Open DevTools → Network tab
-  3. Generate any image
-  4. Look for "batchGenerateImages" request
-  5. Copy the UUID from the URL: /v1/projects/{THIS_UUID}/flowMedia:...
+  2. Open any project — the URL will look like:
+     https://labs.google/fx/tools/flow/project/YOUR_UUID
+  3. Copy the UUID from the URL
 
 Then run with: node generate.mjs -p "..." --project-id YOUR_UUID
 (Saved automatically for future runs)
