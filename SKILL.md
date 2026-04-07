@@ -1,5 +1,5 @@
 ---
-name: whisk-proxy
+name: flow-proxy
 description: >
   Generate images with Google Imagen 4 and Nano Banana for free via Flow API.
   No API key, no paid subscription — just a Google account and Chrome extension.

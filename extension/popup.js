@@ -175,7 +175,7 @@ connectBtn.addEventListener('click', handleConnect);
 openFlowBtn.addEventListener('click', handleOpenFlow);
 document.getElementById('githubLink').addEventListener('click', (e) => {
   e.preventDefault();
-  chrome.tabs.create({ url: 'https://github.com/AndyShaman/whisk-proxy' });
+  chrome.tabs.create({ url: 'https://github.com/liorium/flow-proxy' });
 });
 
 init();

@@ -1,6 +1,5 @@
 # Auth tokens — NEVER commit
 .flow-proxy/
-.whisk-proxy/
 token.json
 
 # Generated images and videos

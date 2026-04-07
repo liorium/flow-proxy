@@ -1,4 +1,4 @@
-# Whisk Proxy
+# Flow Proxy
 
 **Generate images with Google Imagen 4 and Nano Banana — completely free. No API key, no paid subscription.**
 
@@ -123,7 +123,7 @@ Chrome Extension              CLI Script
 This project follows the **Agent Skills** standard. Copy the folder to your skills directory:
 
 ```bash
-cp -r whisk-proxy ~/.claude/skills/whisk-proxy
+cp -r flow-proxy ~/.claude/skills/flow-proxy
 ```
 
 The AI agent will automatically discover the skill and use it when you ask to generate images.
