@@ -42,12 +42,14 @@ function setLoading(loading) {
   }
 }
 
-async function checkProxyStatus() {
+async function checkSessionStatus() {
   try {
-    const response = await fetch(`${PROXY_URL}/status`);
-    return await response.json();
+    const res = await fetch(AUTH_SESSION_URL, { credentials: 'include' });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.access_token || data.accessToken || null;
   } catch {
-    return { connected: false, message: 'Proxy server not running' };
+    return null;
   }
 }
 
@@ -99,7 +101,7 @@ async function sendAuthToProxy(accessToken, sessionCookie) {
   });
 
   if (!response.ok) {
-    const data = await response.json();
+    const data = await response.json().catch(() => ({}));
     throw new Error(data.error || 'Failed to send token');
   }
 
@@ -128,13 +130,15 @@ async function handleConnect() {
     // Get session cookie for auto-refresh
     const sessionCookie = await getSessionCookie();
 
-    // Send to local proxy server
-    const result = await sendAuthToProxy(accessToken, sessionCookie);
+    // Send to local proxy server (must be running via generate.mjs)
+    try {
+      await sendAuthToProxy(accessToken, sessionCookie);
+    } catch {
+      throw new Error('CLI server not running. Run generate.mjs first, then click Connect.');
+    }
 
-    updateStatus(true, 'Connected!');
-    infoEl.textContent = sessionCookie
-      ? 'Token will auto-refresh for ~30 days.'
-      : 'Connected! Token valid for ~1 hour.';
+    updateStatus(true, 'Connected');
+    infoEl.textContent = (sessionCookie ? 'Token auto-refreshes for ~30 days.' : 'Token valid for ~1 hour.') + '  reCAPTCHA: auto';
     connectBtn.textContent = 'Reconnect';
 
   } catch (error) {
@@ -150,22 +154,15 @@ async function handleOpenFlow() {
 }
 
 async function init() {
-  const proxyStatus = await checkProxyStatus();
+  const token = await checkSessionStatus();
 
-  if (!proxyStatus.connected && proxyStatus.message === 'Proxy server not running') {
-    updateStatus(false, 'Waiting for CLI script...');
-    infoEl.textContent = 'Run generate.mjs first — server starts automatically.';
-    connectBtn.disabled = false;
-    return;
-  }
-
-  if (proxyStatus.connected) {
-    updateStatus(true, proxyStatus.message);
-    infoEl.textContent = 'Ready for image generation.';
+  if (token) {
+    updateStatus(true, 'Connected');
+    infoEl.textContent = 'OAuth ✓  |  reCAPTCHA: auto';
     connectBtn.textContent = 'Reconnect';
   } else {
     updateStatus(false, 'Not connected');
-    infoEl.textContent = 'Open labs.google/fx/tools/flow and click Connect.';
+    infoEl.textContent = 'Open labs.google/fx/tools/flow, sign in, then click Connect.';
   }
 
   connectBtn.disabled = false;

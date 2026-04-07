@@ -74,9 +74,10 @@ Models:
  */
 function resolveProjectId() {
   if (values['project-id']) {
-    // Save for future use
     const data = readToken() || {};
-    saveToken({ ...data, projectId: values['project-id'] });
+    if (data.projectId !== values['project-id']) {
+      saveToken({ ...data, projectId: values['project-id'] });
+    }
     return values['project-id'];
   }
   const data = readToken();

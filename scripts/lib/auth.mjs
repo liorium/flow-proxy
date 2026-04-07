@@ -20,6 +20,7 @@ let _authResolve = null;
 let _recaptchaNeeded = false;
 let _recaptchaResolve = null;
 let _recaptchaReject = null;
+let _recaptchaPromise = null; // cached pending promise
 
 // ─── Token file helpers ────────────────────────────────────────────────────
 
@@ -139,6 +140,7 @@ function handleRequest(req, res) {
         const reject = _recaptchaReject;
         _recaptchaResolve = null;
         _recaptchaReject = null;
+        // _recaptchaPromise is cleared via .finally() in getRecaptchaToken
 
         if (error && reject) {
           reject(new Error(error));
@@ -244,10 +246,13 @@ export async function ensureToken() {
 
 /**
  * Request a reCAPTCHA token from the Chrome extension.
+ * Concurrent calls share the same pending promise (idempotent).
  * Requires the server to be running and Chrome with labs.google tab open.
  */
 export function getRecaptchaToken() {
-  return new Promise((resolve, reject) => {
+  if (_recaptchaPromise) return _recaptchaPromise;
+
+  _recaptchaPromise = new Promise((resolve, reject) => {
     _recaptchaNeeded = true;
     _recaptchaResolve = resolve;
     _recaptchaReject = reject;
@@ -262,7 +267,12 @@ export function getRecaptchaToken() {
         reject(new Error(
           '\nreCAPTCHA timeout. Make sure Chrome is open with the labs.google/fx/tools/flow tab.'
         ));
+        // _recaptchaPromise is cleared via .finally() below
       }
     }, 30000);
+  }).finally(() => {
+    _recaptchaPromise = null;
   });
+
+  return _recaptchaPromise;
 }
