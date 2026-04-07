@@ -2,7 +2,7 @@
 
 **Generate images with Google Imagen 4 and Nano Banana — completely free. No API key, no paid subscription.**
 
-Uses Google Labs Flow API with your regular Google account. Chrome extension for one-click auth, CLI script for generation.
+Uses Google Labs Flow API with your regular Google account. Chrome extension handles OAuth and reCAPTCHA automatically.
 
 ## What is this?
 
@@ -11,7 +11,7 @@ A lightweight CLI tool and AI Agent Skill that generates images using Google's l
 **Key features:**
 - **Free** — only needs a Google account
 - **No dependencies** — just Node.js 18+ and Chrome
-- **One-click auth** — Chrome extension handles tokens automatically
+- **Fully automatic auth** — OAuth token + reCAPTCHA handled by Chrome extension
 - **Auto-refresh** — session cookie lasts ~30 days, no hourly re-auth
 - **3 models** — Imagen 4, Nano Banana, Reference-to-Image
 - **AI Agent Skill** — works with Claude Code, Codex, and other AI agents
@@ -29,22 +29,32 @@ A lightweight CLI tool and AI Agent Skill that generates images using Google's l
 
 1. Open [labs.google/fx/tools/flow](https://labs.google/fx/tools/flow) in Chrome
 2. Sign in with your Google account
-3. Click the **Flow Proxy** extension icon in the toolbar
-4. Click **"Connect"**
+3. Run `node scripts/generate.mjs -p "test" --project-id YOUR_PROJECT_ID` (see below)
+4. Click the **Flow Proxy** extension icon → **"Connect"**
 
-That's it! Token auto-refreshes for ~30 days.
+Token auto-refreshes for ~30 days. After that, repeat step 4.
 
-### 3. Generate images
+### 3. Find your Project ID (one-time)
+
+1. Open [labs.google/fx/tools/flow](https://labs.google/fx/tools/flow) in Chrome
+2. Open DevTools → **Network** tab
+3. Generate any image on the page
+4. Find the request named `batchGenerateImages`
+5. Copy the UUID from the URL: `/v1/projects/{THIS_UUID}/flowMedia:batchGenerateImages`
+
+The project ID is saved automatically on first use — no need to provide it again.
+
+### 4. Generate images
 
 ```bash
-# Default model (Imagen 4), 4 images
+# First run — provide project ID once (saved for future runs)
+node scripts/generate.mjs -p "a cat astronaut floating in space" --project-id YOUR_UUID
+
+# Subsequent runs — no project ID needed
 node scripts/generate.mjs -p "a cat astronaut floating in space"
 
 # Nano Banana (fast, creative)
 node scripts/generate.mjs -p "abstract painting in neon colors" -m banana
-
-# Reference-to-Image (style transfer)
-node scripts/generate.mjs -p "watercolor portrait of a woman" -m r2i
 
 # Landscape banner
 node scripts/generate.mjs -p "futuristic city skyline at sunset" -r 16:9
@@ -52,6 +62,8 @@ node scripts/generate.mjs -p "futuristic city skyline at sunset" -r 16:9
 # Single image, save to specific folder
 node scripts/generate.mjs -p "abstract background" -c 1 -o ./my-images
 ```
+
+**Requirement:** Chrome must be open with the `labs.google/fx/tools/flow` tab — the extension handles reCAPTCHA automatically in the background.
 
 ## Models
 
@@ -71,6 +83,7 @@ node scripts/generate.mjs -p "abstract background" -c 1 -o ./my-images
 | `--ratio` | `-r` | `1:1` | Aspect ratio (see below) |
 | `--output` | `-o` | `.` | Output directory |
 | `--seed` | `-s` | random | Seed for reproducibility |
+| `--project-id` | `-j` | saved | Flow project UUID (required on first run) |
 
 ## Aspect Ratios
 
@@ -91,32 +104,39 @@ node scripts/status.mjs
 ## How It Works
 
 ```
-Chrome Extension              CLI Script
-     |                             |
-     | 1. User clicks "Connect"    |
-     |                             |
-     +--> extracts access_token    |
-     |    from labs.google session |
-     |                             |
-     +--> extracts session cookie  |
-     |    (~30 day lifetime)       |
-     |                             |
-     +--> POST to localhost:3847 --+
-     |                             |
-     |    2. Token saved to        |
-     |    ~/.flow-proxy/token.json |
-     |                             |
-     |    3. generate.mjs sends    |
-     |    request to Google API    |
-     |                             |
-     |    4. When token expires,   |
-     |    auto-refreshes via       |
-     |    session cookie           |
+Chrome Extension (background)     CLI Script
+        |                              |
+        | content.js runs on           |
+        | labs.google tab at all times |
+        |                              |
+        |   1. generate.mjs starts     |
+        |      local server :3847      |
+        |                              |
+        |   2. server requests         |
+        |      reCAPTCHA token  <------+
+        |                              |
+        +--> calls grecaptcha.execute()|
+        |    in labs.google tab        |
+        |                              |
+        +--> POST token to :3847 ------+
+        |                              |
+        |   3. generate.mjs sends      |
+        |      request to Flow API     |
+        |      with OAuth + reCAPTCHA  |
+        |                              |
+        |   4. signed image URL        |
+        |      downloaded & saved      |
+        |                              |
+        |   5. OAuth auto-refreshes    |
+        |      via session cookie      |
+        |      (~30 days)              |
 ```
 
-**API endpoint:** `https://aisandbox-pa.googleapis.com/v1:runImageFx`
+**API endpoint:** `https://aisandbox-pa.googleapis.com/v1/projects/{projectId}/flowMedia:batchGenerateImages`
 
 **Auth:** OAuth Bearer token from Google Labs session, auto-refreshed via session cookie
+
+**reCAPTCHA:** Handled automatically by the Chrome extension content script
 
 ## Use as AI Agent Skill
 
@@ -137,26 +157,30 @@ The AI agent will automatically discover the skill and use it when you ask to ge
 
 ## Troubleshooting
 
-### "No valid token found"
-Install the Chrome extension and click "Connect" on the Flow page.
+### "No valid token found" / "Auth timeout"
+Run `generate.mjs` and click "Connect" in the Flow Proxy extension while on labs.google/fx/tools/flow.
+
+### "reCAPTCHA timeout"
+Make sure Chrome is open with the `labs.google/fx/tools/flow` tab. The extension's content script must be active.
 
 ### "Token expired" + no auto-refresh
-Session cookie may have expired (~30 days). Click "Connect" again.
+Session cookie may have expired (~30 days). Run `generate.mjs` and click "Connect" again.
 
 ### "API Error 403"
-Your Google account may not have access. Use a personal Google account (not workspace).
+Your Google account may not have access. Use a personal Google account (not Workspace).
 
 ### "API Error 429"
 Rate limited. Wait a few minutes and try again.
 
-### Extension says "Proxy server not running"
-Run `generate.mjs` first — the auth server starts automatically.
+### Extension popup shows "Not connected"
+Sign into Google on labs.google/fx/tools/flow, then click "Connect" in the extension while `generate.mjs` is running.
 
 ## Requirements
 
 - **Node.js 18+** (uses native `fetch`)
 - **Google Chrome** (for the extension)
 - **Google account** with access to [labs.google](https://labs.google)
+- **labs.google/fx/tools/flow tab open** during generation (for reCAPTCHA)
 - No npm dependencies, no build step
 
 ## License

@@ -10,12 +10,15 @@ description: >
 
 # Flow Image Generator
 
-Generate images using **Google Imagen 4, Nano Banana, and Reference-to-Image** for free. No API key — uses Chrome extension for OAuth.
+Generate images using **Google Imagen 4, Nano Banana, and Reference-to-Image** for free. No API key — uses Chrome extension for OAuth and reCAPTCHA.
 
 ## Quick Start
 
 ```bash
-# Generate 4 images (Imagen 4, default)
+# First run — provide project ID once (saved automatically)
+node {baseDir}/scripts/generate.mjs -p "a cat astronaut floating in space" --project-id YOUR_UUID
+
+# Subsequent runs
 node {baseDir}/scripts/generate.mjs -p "a cat astronaut floating in space"
 
 # Nano Banana (fast, creative)
@@ -49,6 +52,7 @@ node {baseDir}/scripts/generate.mjs -p "sunset over mountains" -o ./images
 | `--ratio` | `-r` | `1:1` | Aspect ratio: `1:1`, `16:9`, `9:16`, `4:3`, `3:4` |
 | `--output` | `-o` | `.` | Output directory |
 | `--seed` | `-s` | random | Seed for reproducibility |
+| `--project-id` | `-j` | saved | Flow project UUID (required on first run only) |
 
 ## Aspect Ratios
 
@@ -60,7 +64,7 @@ node {baseDir}/scripts/generate.mjs -p "sunset over mountains" -o ./images
 
 ## Authentication
 
-Token stored in `~/.flow-proxy/token.json`. The Chrome extension handles auth automatically.
+Token stored in `~/.flow-proxy/token.json`. OAuth and reCAPTCHA are handled automatically by the Chrome extension.
 
 ### Check token status
 
@@ -70,23 +74,34 @@ node {baseDir}/scripts/status.mjs
 
 ### First-time setup
 
-1. Install the Chrome extension from `{baseDir}/extension/` (load unpacked)
-2. Open https://labs.google/fx/tools/flow
-3. Sign in with Google
-4. Click the Flow Proxy extension icon → "Connect"
+1. Install the Chrome extension from `{baseDir}/extension/` (load unpacked in chrome://extensions)
+2. Open https://labs.google/fx/tools/flow and sign in with Google
+3. Find your project ID: DevTools → Network → generate an image → copy UUID from `batchGenerateImages` request URL
+4. Run: `node {baseDir}/scripts/generate.mjs -p "test" --project-id YOUR_UUID`
+5. Click the Flow Proxy extension icon → "Connect"
 
-Token auto-refreshes via session cookie (~30 days). After that, repeat step 4.
+Project ID and token are saved automatically for future runs.
+
+### Ongoing usage
+
+- **OAuth token**: auto-refreshes via session cookie (~30 days). After expiry, run generate.mjs and click "Connect" in the extension.
+- **reCAPTCHA**: handled automatically — no user action needed, as long as Chrome has a labs.google/fx/tools/flow tab open.
 
 ### If token is expired
 
-The CLI script auto-detects expired tokens and starts a local auth server.
-Just click "Connect" in the Chrome extension — no manual token copying needed.
-
-The agent should check `status.mjs` first. If token is expired, run `generate.mjs` — it will start the auth server and wait for the extension. Tell the user to click "Connect" in the extension.
+Run `generate.mjs` — it will start the auth server and wait. Click "Connect" in the extension. No manual token copying needed.
 
 ## Important
 
 - Prompts in **English** produce best results
+- Chrome must have the `labs.google/fx/tools/flow` tab open during generation (for automatic reCAPTCHA)
 - The API is free but rate-limited (Google account level)
 - Images saved as PNG
 - Do NOT read generated PNG files into context — they consume thousands of tokens
+
+## Agent Instructions
+
+1. Check token status with `status.mjs` first
+2. If expired: run `generate.mjs` and tell the user to click "Connect" in the extension
+3. Ensure the user has `labs.google/fx/tools/flow` open in Chrome
+4. Run `generate.mjs` with an appropriate English prompt
