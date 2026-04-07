@@ -246,7 +246,19 @@ export async function ensureToken() {
 
 /**
  * Request a reCAPTCHA token from the Chrome extension.
- * Concurrent calls share the same pending promise (idempotent).
+ *
+ * WHY promise caching: the Flow API requires reCAPTCHA on every request.
+ * If generate.mjs is ever extended to run concurrent requests, naively calling
+ * this function twice would overwrite _recaptchaResolve, causing the first
+ * caller to hang forever. Caching the promise ensures all concurrent callers
+ * share a single in-flight token request.
+ *
+ * WHY .finally() owns the null cleanup (not the timeout handler):
+ * If the timeout nulled _recaptchaPromise before calling reject(), a concurrent
+ * getRecaptchaToken() call between those two lines would create a new promise
+ * and store it in _recaptchaPromise — only for .finally() of the OLD promise
+ * to immediately wipe it out. Single cleanup point eliminates the race.
+ *
  * Requires the server to be running and Chrome with labs.google tab open.
  */
 export function getRecaptchaToken() {
@@ -267,10 +279,10 @@ export function getRecaptchaToken() {
         reject(new Error(
           '\nreCAPTCHA timeout. Make sure Chrome is open with the labs.google/fx/tools/flow tab.'
         ));
-        // _recaptchaPromise is cleared via .finally() below
       }
     }, 30000);
   }).finally(() => {
+    // Single cleanup point — see comment above for why not in the timeout handler
     _recaptchaPromise = null;
   });
 

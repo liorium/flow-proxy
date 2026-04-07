@@ -75,6 +75,9 @@ Models:
 function resolveProjectId() {
   if (values['project-id']) {
     const data = readToken() || {};
+    // Only write when the value actually changes — ensureToken() may have just
+    // called saveToken() for a token refresh, and writing again would be a
+    // redundant disk write with no new information.
     if (data.projectId !== values['project-id']) {
       saveToken({ ...data, projectId: values['project-id'] });
     }

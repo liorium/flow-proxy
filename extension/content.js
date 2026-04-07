@@ -1,7 +1,15 @@
 /**
  * Flow Proxy — Content Script (MAIN world)
  * Polls local server for reCAPTCHA token requests and fulfills them.
- * Runs in the page's main execution context — has direct access to grecaptcha.
+ *
+ * WHY MAIN world (not ISOLATED): content scripts normally run in an isolated
+ * JS context and cannot access page variables like `grecaptcha`. We need
+ * grecaptcha.enterprise.execute() to generate tokens that Google accepts.
+ * ISOLATED world content scripts dispatching CustomEvents to page-injected
+ * scripts lose event.detail across the world boundary in Chrome MV3.
+ * Running in MAIN world gives us direct access to grecaptcha while still
+ * keeping the script alive as long as the tab is open (unlike service workers,
+ * which Chrome can suspend at any time, breaking setInterval-based polling).
  */
 
 const PROXY_URL = 'http://localhost:3847';
