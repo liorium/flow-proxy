@@ -1,6 +1,6 @@
 /**
  * Flow Proxy — Auth module
- * Token management + embedded HTTP auth server
+ * Token management + persistent HTTP server for auth and reCAPTCHA
  */
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
@@ -12,9 +12,17 @@ const TOKEN_DIR = join(homedir(), '.flow-proxy');
 const TOKEN_FILE = join(TOKEN_DIR, 'token.json');
 const PORT = 3847;
 
-/**
- * Read saved token data
- */
+// Server state
+let _server = null;
+let _authResolve = null;
+
+// reCAPTCHA state
+let _recaptchaNeeded = false;
+let _recaptchaResolve = null;
+let _recaptchaReject = null;
+
+// ─── Token file helpers ────────────────────────────────────────────────────
+
 export function readToken() {
   if (!existsSync(TOKEN_FILE)) return null;
   try {
@@ -24,54 +32,36 @@ export function readToken() {
   }
 }
 
-/**
- * Save token data to disk
- */
 export function saveToken(data) {
   mkdirSync(TOKEN_DIR, { recursive: true });
   writeFileSync(TOKEN_FILE, JSON.stringify(data, null, 2));
 }
 
-/**
- * Try to refresh access token using stored session cookie
- */
+// ─── Token validation & refresh ───────────────────────────────────────────
+
 export async function refreshToken(sessionCookie) {
   const res = await fetch('https://labs.google/fx/api/auth/session', {
-    headers: {
-      'Cookie': `__Secure-next-auth.session-token=${sessionCookie}`,
-    },
+    headers: { 'Cookie': `__Secure-next-auth.session-token=${sessionCookie}` },
   });
-
   if (!res.ok) return null;
-
   const data = await res.json();
-  const accessToken = data.access_token || data.accessToken;
-  if (!accessToken) return null;
-
-  return accessToken;
+  return data.access_token || data.accessToken || null;
 }
 
-/**
- * Get a valid access token — reads from file, auto-refreshes if expired
- */
 export async function getValidToken() {
   const data = readToken();
   if (!data) return null;
 
-  // Check if access token is still valid (5 min buffer)
+  // Token still valid (5 min buffer)
   if (data.accessToken && data.expiresAt && data.expiresAt > Date.now() + 300000) {
     return data.accessToken;
   }
 
-  // Try auto-refresh via session cookie
+  // Auto-refresh via session cookie
   if (data.sessionCookie) {
     const newToken = await refreshToken(data.sessionCookie);
     if (newToken) {
-      saveToken({
-        ...data,
-        accessToken: newToken,
-        expiresAt: Date.now() + 3600000,
-      });
+      saveToken({ ...data, accessToken: newToken, expiresAt: Date.now() + 3600000 });
       console.log('Token auto-refreshed via session cookie.');
       return newToken;
     }
@@ -81,120 +71,160 @@ export async function getValidToken() {
   return null;
 }
 
-/**
- * Start local auth server and wait for the Chrome extension to send a token.
- * Returns the access token.
- */
-export function startAuthServer() {
-  return new Promise((resolve, reject) => {
-    let resolved = false;
+// ─── HTTP server ───────────────────────────────────────────────────────────
 
-    const server = createServer((req, res) => {
-      // CORS headers for extension requests
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+function handleRequest(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-      if (req.method === 'OPTIONS') {
-        res.writeHead(204);
-        res.end();
-        return;
-      }
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204); res.end(); return;
+  }
 
-      // Status endpoint
-      if (req.method === 'GET' && req.url === '/status') {
-        const token = readToken();
-        const connected = token?.accessToken && token.expiresAt > Date.now();
+  // Status
+  if (req.method === 'GET' && req.url === '/status') {
+    const token = readToken();
+    const connected = !!(token?.accessToken && token.expiresAt > Date.now());
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ connected, message: connected ? 'Token valid' : 'Waiting for connection' }));
+    return;
+  }
+
+  // OAuth token from extension
+  if (req.method === 'POST' && req.url === '/auth') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', () => {
+      try {
+        const { accessToken, sessionCookie } = JSON.parse(body);
+        if (!accessToken || !accessToken.startsWith('ya29')) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Invalid token' }));
+          return;
+        }
+        saveToken({ accessToken, sessionCookie: sessionCookie || null, expiresAt: Date.now() + 3600000 });
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({
-          connected,
-          message: connected ? 'Token valid' : 'Waiting for connection',
-        }));
-        return;
+        res.end(JSON.stringify({ ok: true, message: 'Connected!' }));
+        if (_authResolve) {
+          console.log('Token received! Proceeding...\n');
+          const resolve = _authResolve;
+          _authResolve = null;
+          resolve(accessToken);
+        }
+      } catch {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Invalid request' }));
       }
-
-      // Auth endpoint — receives token from extension
-      if (req.method === 'POST' && req.url === '/auth') {
-        let body = '';
-        req.on('data', chunk => { body += chunk; });
-        req.on('end', () => {
-          try {
-            const { accessToken, sessionCookie } = JSON.parse(body);
-
-            if (!accessToken || !accessToken.startsWith('ya29')) {
-              res.writeHead(400, { 'Content-Type': 'application/json' });
-              res.end(JSON.stringify({ error: 'Invalid token' }));
-              return;
-            }
-
-            saveToken({
-              accessToken,
-              sessionCookie: sessionCookie || null,
-              expiresAt: Date.now() + 3600000,
-            });
-
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ ok: true, message: 'Connected!' }));
-
-            if (!resolved) {
-              resolved = true;
-              console.log('Token received! Proceeding...\n');
-              setTimeout(() => {
-                server.close();
-                resolve(accessToken);
-              }, 200);
-            }
-          } catch {
-            res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Invalid request' }));
-          }
-        });
-        return;
-      }
-
-      res.writeHead(404);
-      res.end('Not found');
     });
+    return;
+  }
 
-    server.on('error', (err) => {
+  // reCAPTCHA need check (polled by extension background.js)
+  if (req.method === 'GET' && req.url === '/need-recaptcha') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ needed: _recaptchaNeeded }));
+    return;
+  }
+
+  // reCAPTCHA token from extension
+  if (req.method === 'POST' && req.url === '/recaptcha-token') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', () => {
+      try {
+        const { token, error } = JSON.parse(body);
+        _recaptchaNeeded = false;
+        const resolve = _recaptchaResolve;
+        const reject = _recaptchaReject;
+        _recaptchaResolve = null;
+        _recaptchaReject = null;
+
+        if (error && reject) {
+          reject(new Error(error));
+        } else if (token && resolve) {
+          resolve(token);
+        }
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true }));
+      } catch {
+        res.writeHead(400); res.end('Bad request');
+      }
+    });
+    return;
+  }
+
+  res.writeHead(404); res.end('Not found');
+}
+
+/**
+ * Start the persistent HTTP server.
+ * Returns the server instance, or null if port is already in use.
+ */
+export function startServer() {
+  return new Promise((resolve) => {
+    const srv = createServer(handleRequest);
+
+    srv.on('error', (err) => {
       if (err.code === 'EADDRINUSE') {
-        // Server already running — another script instance is handling auth
-        reject(new Error('Auth server already running on port ' + PORT));
+        // Another instance is already running — still usable for reCAPTCHA
+        resolve(null);
       } else {
-        reject(err);
+        console.error('Server error:', err.message);
+        resolve(null);
       }
     });
 
-    // Poll token file every 2s — catches tokens saved before server started
+    srv.listen(PORT, '127.0.0.1', () => {
+      _server = srv;
+      resolve(srv);
+    });
+  });
+}
+
+export function stopServer() {
+  if (_server) {
+    _server.close();
+    _server = null;
+  }
+}
+
+// ─── Auth flow ─────────────────────────────────────────────────────────────
+
+/**
+ * Wait for the user to click "Connect" in the Chrome extension.
+ * Server must already be running.
+ */
+function waitForAuthToken() {
+  return new Promise((resolve, reject) => {
+    _authResolve = resolve;
+
+    console.log('');
+    console.log('='.repeat(60));
+    console.log('  ACTION REQUIRED:');
+    console.log('  1. Open Chrome: https://labs.google/fx/tools/flow');
+    console.log('  2. Click the Flow Proxy extension icon');
+    console.log('  3. Click "Connect"');
+    console.log('='.repeat(60));
+    console.log('');
+
+    // Also poll token file (catches tokens saved before server started)
     const pollInterval = setInterval(async () => {
-      if (resolved) { clearInterval(pollInterval); return; }
       const token = await getValidToken();
-      if (token && !resolved) {
-        resolved = true;
+      if (token && _authResolve) {
         clearInterval(pollInterval);
+        const r = _authResolve;
+        _authResolve = null;
         console.log('Token found! Proceeding...\n');
-        server.close();
-        resolve(token);
+        r(token);
       }
     }, 2000);
 
-    server.listen(PORT, '127.0.0.1', () => {
-      console.log('');
-      console.log('='.repeat(60));
-      console.log('  ACTION REQUIRED:');
-      console.log('  1. Open Chrome: https://labs.google/fx/tools/flow');
-      console.log('  2. Click the Flow Proxy extension icon');
-      console.log('  3. Click "Connect"');
-      console.log('='.repeat(60));
-      console.log('');
-    });
-
-    // Timeout 10 minutes
     setTimeout(() => {
-      if (!resolved) {
-        resolved = true;
+      if (_authResolve) {
         clearInterval(pollInterval);
-        server.close();
+        _authResolve = null;
         reject(new Error('Auth timeout (10 minutes). Try again.'));
       }
     }, 600000);
@@ -202,14 +232,37 @@ export function startAuthServer() {
 }
 
 /**
- * Ensure we have a valid token. If not, start auth server and wait.
- * Returns access token string.
+ * Ensure a valid OAuth token exists. Starts the server if needed.
  */
 export async function ensureToken() {
-  // 1. Try reading existing token
   const token = await getValidToken();
   if (token) return token;
+  return waitForAuthToken();
+}
 
-  // 2. No valid token — start auth server and wait for extension
-  return startAuthServer();
+// ─── reCAPTCHA ─────────────────────────────────────────────────────────────
+
+/**
+ * Request a reCAPTCHA token from the Chrome extension.
+ * Requires the server to be running and Chrome with labs.google tab open.
+ */
+export function getRecaptchaToken() {
+  return new Promise((resolve, reject) => {
+    _recaptchaNeeded = true;
+    _recaptchaResolve = resolve;
+    _recaptchaReject = reject;
+
+    process.stdout.write('Getting reCAPTCHA token from extension...');
+
+    setTimeout(() => {
+      if (_recaptchaNeeded) {
+        _recaptchaNeeded = false;
+        _recaptchaResolve = null;
+        _recaptchaReject = null;
+        reject(new Error(
+          '\nreCAPTCHA timeout. Make sure Chrome is open with the labs.google/fx/tools/flow tab.'
+        ));
+      }
+    }, 30000);
+  });
 }

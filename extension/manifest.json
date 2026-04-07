@@ -1,10 +1,16 @@
 {
   "manifest_version": 3,
   "name": "Flow Proxy Auth",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Connect Google Flow AI to Claude Code for image generation",
-  "permissions": ["activeTab", "scripting", "cookies"],
-  "host_permissions": ["https://labs.google/*"],
+  "permissions": ["activeTab", "scripting", "cookies", "tabs"],
+  "host_permissions": ["https://labs.google/*", "http://localhost/*"],
+  "content_scripts": [{
+    "matches": ["https://labs.google/*"],
+    "js": ["content.js"],
+    "run_at": "document_idle",
+    "world": "MAIN"
+  }],
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
