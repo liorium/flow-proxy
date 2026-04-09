@@ -1,7 +1,7 @@
 ---
 name: flow-proxy
 description: >
-  Generate images and videos with Google Imagen, Nano Banana, and Veo via Flow API.
+  Generate images and videos with Google Imagen, Nano Banana 2 / Pro, and Veo via Flow API.
   No API key, no paid subscription — just a Google account and Chrome extension.
   Use when the user asks to generate, create, or make an image, picture, illustration, logo, banner, avatar, video, clip, animation, or fly-through.
   Triggers: generate image, create picture, make illustration, generate video, create video, make clip, animate image, нарисуй, сгенерируй картинку, создай изображение.
@@ -10,7 +10,7 @@ description: >
 
 # Flow Image & Video Generator
 
-Generate images and videos using **Google Imagen 4, Nano Banana, Reference-to-Image, and Veo** for free. No API key — uses Chrome extension for OAuth and reCAPTCHA.
+Generate images and videos using **Google Imagen 4, Nano Banana 2, Nano Banana Pro, Reference-to-Image, and Veo** for free. No API key — uses Chrome extension for OAuth and reCAPTCHA.
 
 This installed skill now covers both image generation via `scripts/generate.mjs` and video generation via `scripts/generate-video.mjs`.
 
@@ -23,8 +23,11 @@ node {baseDir}/scripts/generate.mjs -p "a cat astronaut floating in space" --pro
 # Subsequent runs
 node {baseDir}/scripts/generate.mjs -p "a cat astronaut floating in space"
 
-# Nano Banana (fast, creative)
-node {baseDir}/scripts/generate.mjs -p "abstract painting in neon colors" -m banana
+# Nano Banana 2
+node {baseDir}/scripts/generate.mjs -p "abstract painting in neon colors" -m banana2
+
+# Nano Banana Pro
+node {baseDir}/scripts/generate.mjs -p "editorial fashion portrait with dramatic studio light" -m banana-pro
 
 # Reference-to-Image (style transfer)
 node {baseDir}/scripts/generate.mjs -p "watercolor portrait" -m r2i
@@ -47,17 +50,50 @@ node {baseDir}/scripts/generate-video.mjs -m veo-r2v -i ./examples/example-cyber
 | Type | Model | Flag | Best for |
 |------|-------|------|----------|
 | Image | Imagen 4 | `-m imagen4` (default) | Highest quality, photorealistic |
-| Image | Nano Banana | `-m banana` | Fast, creative generation |
+| Image | Nano Banana 2 | `-m banana2` | Latest Nano Banana image generation |
+| Image | Nano Banana Pro | `-m banana-pro` | Higher-tier Nano Banana generation |
 | Image | Reference-to-Image | `-m r2i` | Style transfer |
 | Video | Veo 3.1 Text-to-Video | `-m veo` (video CLI default) | Prompt-only video generation |
 | Video | Veo 3.1 Image-to-Video | `-m veo-r2v` | Animate a reference image |
+
+## Model Selection Guide for Agents
+
+Choose models according to the input type and the user’s intent.
+
+### Text-only prompts (zero-base generation)
+
+- **Imagen 4** — use when exact text rendering, complex logical placement, or multi-object instruction-following is critical.
+- **Nano Banana 2** — use when the goal is concept expansion, style exploration, or vibe consistency across iterations.
+- **Nano Banana Pro** — use when photorealism, cinematic lighting, and premium material detail matter most.
+
+### Reference-image workflows
+
+- **Nano Banana 2** — strongest default for preserving character identity, art style, and visual continuity from a reference image.
+- **Nano Banana Pro** — best when the reference should be reinterpreted at a more realistic, high-end, or polished quality level.
+- **Imagen 4** — best when the reference also needs precise logical edits such as object replacement, text insertion, or composition-aware correction.
+- **r2i** — use when the task is primarily dedicated style transfer / reference-image transformation through the Flow image path.
+
+### Agent Decision Tree
+
+1. If exact text insertion is required → **Imagen 4**
+2. If a reference image’s character or style must stay consistent → **Nano Banana 2**
+3. If the result should be much more realistic / premium than the reference → **Nano Banana Pro**
+4. If the prompt is highly complex and logical layout accuracy matters → **Imagen 4**
+5. If the task is primarily style transfer instead of free reinterpretation → **r2i**
+
+### Priority Rule
+
+If the user says that **consistency and descriptive accuracy matter more than speed**, prefer:
+- **Imagen 4** for text / logic / layout accuracy
+- **Nano Banana 2** for style or character continuity
+- **Nano Banana Pro** for realism and material fidelity
 
 ## Options
 
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
 | `--prompt` | `-p` | required | Image description (English works best) |
-| `--model` | `-m` | `imagen4` | Model: imagen4, banana, r2i |
+| `--model` | `-m` | `imagen4` | Model: imagen4, banana2, banana-pro, r2i |
 | `--count` | `-c` | `1` | Number of images (1-4) |
 | `--ratio` | `-r` | `16:9` | Aspect ratio: `1:1`, `16:9`, `9:16`, `4:3`, `3:4` |
 | `--output` | `-o` | `.` | Output directory |

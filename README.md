@@ -1,6 +1,6 @@
 # Flow Proxy
 
-**Generate images and videos with Google Imagen, Nano Banana, and Veo — completely free. No API key, no paid subscription.**
+**Generate images and videos with Google Imagen, Nano Banana 2 / Pro, and Veo — completely free. No API key, no paid subscription.**
 
 Uses Google Labs Flow API with your regular Google account. Chrome extension handles OAuth and reCAPTCHA automatically.
 
@@ -13,7 +13,7 @@ A lightweight CLI tool and AI Agent Skill that generates images and videos using
 - **No dependencies** — just Node.js 18+ and Chrome
 - **Fully automatic auth** — OAuth token + reCAPTCHA handled by Chrome extension
 - **Auto-refresh** — session cookie lasts ~30 days, no hourly re-auth
-- **Image + video generation** — Imagen 4, Nano Banana, Reference-to-Image, Veo, and Veo r2v
+- **Image + video generation** — Imagen 4, Nano Banana 2, Nano Banana Pro, Reference-to-Image, Veo, and Veo r2v
 - **AI Agent Skill** — works with Claude Code, Codex, and other AI agents
 - **Dedicated video CLI included** — `scripts/generate-video.mjs` for Veo / Veo r2v runs
 
@@ -53,8 +53,11 @@ node scripts/generate.mjs -p "a cat astronaut floating in space" --project-id YO
 # Subsequent runs — no project ID needed
 node scripts/generate.mjs -p "a cat astronaut floating in space"
 
-# Nano Banana (fast, creative)
-node scripts/generate.mjs -p "abstract painting in neon colors" -m banana
+# Nano Banana 2
+node scripts/generate.mjs -p "abstract painting in neon colors" -m banana2
+
+# Nano Banana Pro
+node scripts/generate.mjs -p "editorial fashion portrait with dramatic studio light" -m banana-pro
 
 # Landscape banner
 node scripts/generate.mjs -p "futuristic city skyline at sunset" -r 16:9
@@ -76,15 +79,51 @@ node scripts/generate-video.mjs -m veo-r2v -i ./examples/example-cyberpunk-city.
 | Model | Flag | Best for |
 |-------|------|----------|
 | **Imagen 4** | `-m imagen4` | Highest quality, photorealistic (default) |
-| **Nano Banana** | `-m banana` | Fast, creative generation |
+| **Nano Banana 2** | `-m banana2` | Latest Nano Banana image generation |
+| **Nano Banana Pro** | `-m banana-pro` | Higher-tier Nano Banana generation |
 | **Reference-to-Image** | `-m r2i` | Style transfer |
+
+## Model Selection Guide for Agents
+
+Use the following guide when choosing an image model automatically.
+
+### 1. Text-only prompts (zero-base generation)
+
+- **Imagen 4** — choose this when the prompt contains required text, complex object relationships, or logically precise composition.
+  - Example: “A is looking at B, and the billboard in the background says ‘SALE’.”
+- **Nano Banana 2** — choose this when the goal is concept expansion, style exploration, or keeping a strong overall vibe across multiple prompt variants.
+  - Best for mood-heavy prompts such as cyberpunk cityscapes or painterly atmosphere studies.
+- **Nano Banana Pro** — choose this when raw visual quality, realism, lighting, and material detail are the main goal.
+  - Best for metal, glass, skin, water, and cinematic lighting.
+
+### 2. Reference-image workflows
+
+- **Nano Banana 2** — best default when the user wants to preserve character identity, facial features, costume language, or a distinctive art style across new scenes.
+- **Nano Banana Pro** — best when the reference composition is good but the output should look more premium, realistic, or physically polished.
+- **Imagen 4** — best when the reference image also needs a precise logical edit, such as changing an object, adding text, or making composition-aware corrections.
+- **Reference-to-Image (`r2i`)** — use when the task is primarily style transfer / image-to-image transformation through the dedicated Flow reference-image path.
+
+### Decision Tree
+
+1. Is exact text rendering required? → **Imagen 4**
+2. Is there a reference image whose character or art style must stay consistent? → **Nano Banana 2**
+3. Does the user want a much more realistic, luxurious, or cinematic reinterpretation of the reference? → **Nano Banana Pro**
+4. Is the prompt extremely complex with many objects and precise logical placement? → **Imagen 4**
+5. Is the goal primarily dedicated style transfer rather than free reinterpretation? → **r2i**
+
+### Practical Tip
+
+If the user says that **consistency and descriptive accuracy matter more than speed**, bias toward:
+- **Imagen 4** for text / logic / layout
+- **Nano Banana 2** for character or style continuity
+- **Nano Banana Pro** for visual realism and material quality
 
 ## CLI Options
 
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
 | `--prompt` | `-p` | required | Image description (English works best) |
-| `--model` | `-m` | `imagen4` | Model: imagen4, banana, r2i |
+| `--model` | `-m` | `imagen4` | Model: imagen4, banana2, banana-pro, r2i |
 | `--count` | `-c` | `1` | Number of images per request (1-4) |
 | `--ratio` | `-r` | `16:9` | Aspect ratio (see below) |
 | `--output` | `-o` | `.` | Output directory |

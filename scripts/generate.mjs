@@ -20,9 +20,11 @@ import {
 const ENDPOINT_BASE = 'https://aisandbox-pa.googleapis.com/v1';
 
 const MODELS = {
-  'imagen4': 'IMAGEN_3_5',
-  'banana':  'GEM_PIX',
-  'r2i':     'R2I',
+  'imagen4':     'IMAGEN_3_5',
+  'banana':      'NARWHAL',
+  'banana2':     'NARWHAL',
+  'banana-pro':  'GEM_PIX_2',
+  'r2i':         'R2I',
 };
 
 const ASPECT_MAP = {
@@ -53,7 +55,7 @@ Usage: node generate.mjs -p "prompt" [options]
 
 Options:
   -p, --prompt       Image description (English works best)      [required]
-  -m, --model        Model: imagen4, banana, r2i                 [default: imagen4]
+  -m, --model        Model: imagen4, banana2, banana-pro, r2i    [default: imagen4]
   -r, --ratio        Aspect ratio: 1:1, 16:9, 9:16, 4:3, 3:4   [default: 16:9]
   -o, --output       Output directory                            [default: .]
   -c, --count        Number of images per request (1-4)          [default: 1]
@@ -63,7 +65,8 @@ Options:
 
 Models:
   imagen4      Imagen 4 (highest quality, default)
-  banana       Nano Banana (fast, creative)
+  banana2      Nano Banana 2
+  banana-pro   Nano Banana Pro
   r2i          Reference-to-Image (style transfer)`);
   process.exit(values.help ? 0 : 1);
 }
