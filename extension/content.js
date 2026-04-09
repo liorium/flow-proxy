@@ -27,7 +27,7 @@ async function poll() {
     });
     if (!res.ok) return;
 
-    const { needed } = await res.json();
+    const { needed, action } = await res.json();
     if (!needed) return;
 
     isProviding = true;
@@ -35,7 +35,7 @@ async function poll() {
       if (typeof grecaptcha === 'undefined' || !grecaptcha.enterprise) {
         throw new Error('reCAPTCHA not loaded yet on this page.');
       }
-      const token = await grecaptcha.enterprise.execute(SITE_KEY, { action: 'IMAGE_GENERATION' });
+      const token = await grecaptcha.enterprise.execute(SITE_KEY, { action: action || 'IMAGE_GENERATION' });
       await fetch(`${PROXY_URL}/recaptcha-token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

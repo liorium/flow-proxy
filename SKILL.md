@@ -1,16 +1,18 @@
 ---
 name: flow-proxy
 description: >
-  Generate images with Google Imagen 4 and Nano Banana for free via Flow API.
+  Generate images and videos with Google Imagen, Nano Banana, and Veo via Flow API.
   No API key, no paid subscription — just a Google account and Chrome extension.
-  Use when the user asks to generate, create, or make an image, picture, illustration, logo, banner, or avatar.
-  Triggers: generate image, create picture, make illustration, нарисуй, сгенерируй картинку, создай изображение.
-  Do NOT use for image editing, upscaling, background removal, video generation, or non-Google AI models (DALL-E, Midjourney, Stable Diffusion).
+  Use when the user asks to generate, create, or make an image, picture, illustration, logo, banner, avatar, video, clip, animation, or fly-through.
+  Triggers: generate image, create picture, make illustration, generate video, create video, make clip, animate image, нарисуй, сгенерируй картинку, создай изображение.
+  Do NOT use for image/video editing, standalone upscaling, background removal, or non-Google AI models (DALL-E, Midjourney, Stable Diffusion).
 ---
 
-# Flow Image Generator
+# Flow Image & Video Generator
 
-Generate images using **Google Imagen 4, Nano Banana, and Reference-to-Image** for free. No API key — uses Chrome extension for OAuth and reCAPTCHA.
+Generate images and videos using **Google Imagen 4, Nano Banana, Reference-to-Image, and Veo** for free. No API key — uses Chrome extension for OAuth and reCAPTCHA.
+
+This installed skill now covers both image generation via `scripts/generate.mjs` and video generation via `scripts/generate-video.mjs`.
 
 ## Quick Start
 
@@ -32,15 +34,23 @@ node {baseDir}/scripts/generate.mjs -p "anime girl with headphones" -r 9:16 -c 1
 
 # Save to specific folder
 node {baseDir}/scripts/generate.mjs -p "sunset over mountains" -o ./images
+
+# Text-to-video
+node {baseDir}/scripts/generate-video.mjs -p "cinematic river at dawn"
+
+# Image-to-video
+node {baseDir}/scripts/generate-video.mjs -m veo-r2v -i ./examples/example-cyberpunk-city.jpg -p "slow cinematic fly-through"
 ```
 
 ## Models
 
-| Model | Flag | Best for |
-|-------|------|----------|
-| Imagen 4 | `-m imagen4` (default) | Highest quality, photorealistic |
-| Nano Banana | `-m banana` | Fast, creative generation |
-| Reference-to-Image | `-m r2i` | Style transfer |
+| Type | Model | Flag | Best for |
+|------|-------|------|----------|
+| Image | Imagen 4 | `-m imagen4` (default) | Highest quality, photorealistic |
+| Image | Nano Banana | `-m banana` | Fast, creative generation |
+| Image | Reference-to-Image | `-m r2i` | Style transfer |
+| Video | Veo 3.1 Text-to-Video | `-m veo` (video CLI default) | Prompt-only video generation |
+| Video | Veo 3.1 Image-to-Video | `-m veo-r2v` | Animate a reference image |
 
 ## Options
 
@@ -48,19 +58,21 @@ node {baseDir}/scripts/generate.mjs -p "sunset over mountains" -o ./images
 |------|-------|---------|-------------|
 | `--prompt` | `-p` | required | Image description (English works best) |
 | `--model` | `-m` | `imagen4` | Model: imagen4, banana, r2i |
-| `--count` | `-c` | `4` | Number of images (1-4) |
-| `--ratio` | `-r` | `1:1` | Aspect ratio: `1:1`, `16:9`, `9:16`, `4:3`, `3:4` |
+| `--count` | `-c` | `1` | Number of images (1-4) |
+| `--ratio` | `-r` | `16:9` | Aspect ratio: `1:1`, `16:9`, `9:16`, `4:3`, `3:4` |
 | `--output` | `-o` | `.` | Output directory |
 | `--seed` | `-s` | random | Seed for reproducibility |
 | `--project-id` | `-j` | saved | Flow project UUID (required on first run only) |
 
 ## Aspect Ratios
 
-- `1:1` (1024x1024) — avatars, icons, social posts
-- `16:9` (1365x768) — banners, covers, YouTube thumbnails
-- `9:16` (768x1365) — stories, reels, vertical posters
-- `4:3` — classic landscape
-- `3:4` — classic portrait
+- `1:1` — square compositions, avatars, icons, social posts
+- `16:9` — landscape compositions, banners, covers, YouTube thumbnails
+- `9:16` — portrait compositions, stories, reels, vertical posters
+- `4:3` — classic landscape framing
+- `3:4` — classic portrait framing
+
+Exact pixel dimensions may vary by Flow model and returned media format.
 
 ## Authentication
 
@@ -96,12 +108,15 @@ Run `generate.mjs` — it will start the auth server and wait. Click "Connect" i
 - Prompts in **English** produce best results
 - Chrome must have the `labs.google/fx/tools/flow` tab open during generation (for automatic reCAPTCHA)
 - The API is free but rate-limited (Google account level)
-- Images saved as PNG
-- Do NOT read generated PNG files into context — they consume thousands of tokens
+- Images are saved using the actual format returned by Flow (for example JPG, PNG, or WebP)
+- Videos are saved as MP4 when Flow returns a downloadable result
+- Video generation supports aspect ratio selection, but exact encoded pixel resolution may vary by Flow model/output
+- Do NOT read generated image files into context — they consume thousands of tokens
 
 ## Agent Instructions
 
 1. Check token status with `status.mjs` first
-2. If expired: run `generate.mjs` and tell the user to click "Connect" in the extension
+2. If expired: run the relevant generator and tell the user to click "Connect" in the extension
 3. Ensure the user has `labs.google/fx/tools/flow` open in Chrome
-4. Run `generate.mjs` with an appropriate English prompt
+4. For images, run `generate.mjs` with an appropriate English prompt
+5. For videos, run `generate-video.mjs` with `veo` or `veo-r2v` as appropriate

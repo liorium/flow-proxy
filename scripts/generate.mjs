@@ -14,8 +14,7 @@ import {
   getRecaptchaToken,
   startServer,
   stopServer,
-  readToken,
-  saveToken,
+  resolveProjectId,
 } from './lib/auth.mjs';
 
 const ENDPOINT_BASE = 'https://aisandbox-pa.googleapis.com/v1';
@@ -38,9 +37,9 @@ const { values } = parseArgs({
   options: {
     prompt:     { type: 'string',  short: 'p' },
     model:      { type: 'string',  short: 'm', default: 'imagen4' },
-    ratio:      { type: 'string',  short: 'r', default: '1:1' },
+    ratio:      { type: 'string',  short: 'r', default: '16:9' },
     output:     { type: 'string',  short: 'o', default: '.' },
-    count:      { type: 'string',  short: 'c', default: '4' },
+    count:      { type: 'string',  short: 'c', default: '1' },
     seed:       { type: 'string',  short: 's' },
     'project-id': { type: 'string', short: 'j' },
     help:       { type: 'boolean', short: 'h', default: false },
@@ -55,9 +54,9 @@ Usage: node generate.mjs -p "prompt" [options]
 Options:
   -p, --prompt       Image description (English works best)      [required]
   -m, --model        Model: imagen4, banana, r2i                 [default: imagen4]
-  -r, --ratio        Aspect ratio: 1:1, 16:9, 9:16, 4:3, 3:4   [default: 1:1]
+  -r, --ratio        Aspect ratio: 1:1, 16:9, 9:16, 4:3, 3:4   [default: 16:9]
   -o, --output       Output directory                            [default: .]
-  -c, --count        Number of images per request (1-4)          [default: 4]
+  -c, --count        Number of images per request (1-4)          [default: 1]
   -s, --seed         Random seed (for reproducibility)
   -j, --project-id   Google Flow project ID (saved on first use)
   -h, --help         Show this help
@@ -69,36 +68,32 @@ Models:
   process.exit(values.help ? 0 : 1);
 }
 
-/**
- * Resolve project ID: CLI flag > token.json > error
- */
-function resolveProjectId() {
-  if (values['project-id']) {
-    const data = readToken() || {};
-    // Only write when the value actually changes — ensureToken() may have just
-    // called saveToken() for a token refresh, and writing again would be a
-    // redundant disk write with no new information.
-    if (data.projectId !== values['project-id']) {
-      saveToken({ ...data, projectId: values['project-id'] });
-    }
-    return values['project-id'];
+function detectImageExtension(buffer, contentType = '') {
+  const normalizedType = contentType.split(';', 1)[0].trim().toLowerCase();
+  if (normalizedType === 'image/jpeg') return 'jpg';
+  if (normalizedType === 'image/png') return 'png';
+  if (normalizedType === 'image/webp') return 'webp';
+
+  if (buffer.length >= 3 &&
+      buffer[0] === 0xff &&
+      buffer[1] === 0xd8 &&
+      buffer[2] === 0xff) {
+    return 'jpg';
   }
-  const data = readToken();
-  if (data?.projectId) return data.projectId;
+  if (buffer.length >= 8 &&
+      buffer[0] === 0x89 &&
+      buffer[1] === 0x50 &&
+      buffer[2] === 0x4e &&
+      buffer[3] === 0x47) {
+    return 'png';
+  }
+  if (buffer.length >= 12 &&
+      buffer.subarray(0, 4).toString('ascii') === 'RIFF' &&
+      buffer.subarray(8, 12).toString('ascii') === 'WEBP') {
+    return 'webp';
+  }
 
-  console.error(`
-Error: Project ID not found.
-
-Find your project ID:
-  1. Open https://labs.google/fx/tools/flow in Chrome
-  2. Open any project — the URL will look like:
-     https://labs.google/fx/tools/flow/project/YOUR_UUID
-  3. Copy the UUID from the URL
-
-Then run with: node generate.mjs -p "..." --project-id YOUR_UUID
-(Saved automatically for future runs)
-`);
-  process.exit(1);
+  return 'bin';
 }
 
 async function generate(prompt, model, ratio, count, seed, token, projectId, recaptchaToken) {
@@ -190,9 +185,9 @@ async function main() {
   await startServer();
 
   const token = await ensureToken();
-  const projectId = resolveProjectId();
+  const projectId = resolveProjectId(values['project-id'], 'generate.mjs');
   const outputDir = values.output;
-  const count = Math.min(Math.max(parseInt(values.count) || 4, 1), 4);
+  const count = Math.min(Math.max(parseInt(values.count) || 1, 1), 4);
   const model = values.model;
   const seed = values.seed ? parseInt(values.seed) : undefined;
 
@@ -214,16 +209,21 @@ async function main() {
 
     const ts = Date.now();
     for (let i = 0; i < images.length; i++) {
-      const filepath = join(outputDir, `flow_${ts}_${i}.png`);
       const item = images[i];
+      let buf;
+      let ext;
       if (item.type === 'url') {
         const imgRes = await fetch(item.url);
         if (!imgRes.ok) throw new Error(`Failed to download image: ${imgRes.status}`);
-        const buf = Buffer.from(await imgRes.arrayBuffer());
-        writeFileSync(filepath, buf);
+        buf = Buffer.from(await imgRes.arrayBuffer());
+        ext = detectImageExtension(buf, imgRes.headers.get('content-type') || '');
       } else {
-        writeFileSync(filepath, Buffer.from(item.data, 'base64'));
+        buf = Buffer.from(item.data, 'base64');
+        ext = detectImageExtension(buf);
       }
+
+      const filepath = join(outputDir, `flow_${ts}_${i}.${ext}`);
+      writeFileSync(filepath, buf);
       console.log(`Saved: ${filepath}`);
     }
 

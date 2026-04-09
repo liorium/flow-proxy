@@ -6,7 +6,6 @@
 const PROXY_URL = 'http://localhost:3847';
 const FLOW_URL = 'https://labs.google/fx/tools/flow';
 const AUTH_SESSION_URL = 'https://labs.google/fx/api/auth/session';
-const COOKIE_DOMAIN = 'labs.google';
 const SESSION_COOKIE_NAME = '__Secure-next-auth.session-token';
 
 const statusEl = document.getElementById('status');

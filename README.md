@@ -1,20 +1,21 @@
 # Flow Proxy
 
-**Generate images with Google Imagen 4 and Nano Banana — completely free. No API key, no paid subscription.**
+**Generate images and videos with Google Imagen, Nano Banana, and Veo — completely free. No API key, no paid subscription.**
 
 Uses Google Labs Flow API with your regular Google account. Chrome extension handles OAuth and reCAPTCHA automatically.
 
 ## What is this?
 
-A lightweight CLI tool and AI Agent Skill that generates images using Google's latest models through the Flow API (labs.google).
+A lightweight CLI tool and AI Agent Skill that generates images and videos using Google's latest models through the Flow API (labs.google).
 
 **Key features:**
 - **Free** — only needs a Google account
 - **No dependencies** — just Node.js 18+ and Chrome
 - **Fully automatic auth** — OAuth token + reCAPTCHA handled by Chrome extension
 - **Auto-refresh** — session cookie lasts ~30 days, no hourly re-auth
-- **3 models** — Imagen 4, Nano Banana, Reference-to-Image
+- **Image + video generation** — Imagen 4, Nano Banana, Reference-to-Image, Veo, and Veo r2v
 - **AI Agent Skill** — works with Claude Code, Codex, and other AI agents
+- **Dedicated video CLI included** — `scripts/generate-video.mjs` for Veo / Veo r2v runs
 
 ## Quick Start
 
@@ -43,7 +44,7 @@ Token auto-refreshes for ~30 days. After that, repeat step 4.
 
 The project ID is saved automatically on first use — no need to provide it again.
 
-### 4. Generate images
+### 4. Generate images or videos
 
 ```bash
 # First run — provide project ID once (saved for future runs)
@@ -60,9 +61,15 @@ node scripts/generate.mjs -p "futuristic city skyline at sunset" -r 16:9
 
 # Single image, save to specific folder
 node scripts/generate.mjs -p "abstract background" -c 1 -o ./my-images
+
+# Text-to-video
+node scripts/generate-video.mjs -p "cinematic river at dawn"
+
+# Image-to-video
+node scripts/generate-video.mjs -m veo-r2v -i ./examples/example-cyberpunk-city.jpg -p "slow cinematic fly-through"
 ```
 
-**Requirement:** Chrome must be open with the `labs.google/fx/tools/flow` tab — the extension handles reCAPTCHA automatically in the background.
+**Requirement:** Chrome must be open with the `labs.google/fx/tools/flow` tab — the extension content script handles reCAPTCHA automatically.
 
 ## Models
 
@@ -78,8 +85,8 @@ node scripts/generate.mjs -p "abstract background" -c 1 -o ./my-images
 |------|-------|---------|-------------|
 | `--prompt` | `-p` | required | Image description (English works best) |
 | `--model` | `-m` | `imagen4` | Model: imagen4, banana, r2i |
-| `--count` | `-c` | `4` | Number of images per request (1-4) |
-| `--ratio` | `-r` | `1:1` | Aspect ratio (see below) |
+| `--count` | `-c` | `1` | Number of images per request (1-4) |
+| `--ratio` | `-r` | `16:9` | Aspect ratio (see below) |
 | `--output` | `-o` | `.` | Output directory |
 | `--seed` | `-s` | random | Seed for reproducibility |
 | `--project-id` | `-j` | saved | Flow project UUID (required on first run) |
@@ -88,11 +95,13 @@ node scripts/generate.mjs -p "abstract background" -c 1 -o ./my-images
 
 | Ratio | Resolution | Best for |
 |-------|-----------|----------|
-| `1:1` | 1024x1024 | Avatars, icons, social posts |
-| `16:9` | 1365x768 | Banners, covers, YouTube thumbnails |
-| `9:16` | 768x1365 | Stories, reels, vertical posters |
-| `4:3` | Classic | Presentations, photos |
-| `3:4` | Classic | Portraits |
+| `1:1` | Varies by Flow output | Avatars, icons, social posts |
+| `16:9` | Varies by Flow output | Banners, covers, YouTube thumbnails |
+| `9:16` | Varies by Flow output | Stories, reels, vertical posters |
+| `4:3` | Varies by Flow output | Presentations, photos |
+| `3:4` | Varies by Flow output | Portraits |
+
+Exact pixel dimensions may vary by Flow model and the media format returned for a given generation.
 
 ## Check Token Status
 
@@ -100,10 +109,24 @@ node scripts/generate.mjs -p "abstract background" -c 1 -o ./my-images
 node scripts/status.mjs
 ```
 
+## Video Generation
+
+This repository includes a dedicated video CLI, and the skill can be used for video generation requests too:
+
+```bash
+# Text-to-video
+node scripts/generate-video.mjs -p "cinematic river at dawn"
+
+# Image-to-video using the bundled example asset
+node scripts/generate-video.mjs -m veo-r2v -i ./examples/example-cyberpunk-city.jpg -p "slow cinematic fly-through"
+```
+
+Video generation currently exposes aspect ratio selection, but exact encoded pixel resolution may vary by Flow model/output.
+
 ## How It Works
 
 ```
-Chrome Extension (background)     CLI Script
+Chrome Extension (content script) CLI Script
         |                              |
         | content.js runs on           |
         | labs.google tab at all times |
@@ -119,11 +142,12 @@ Chrome Extension (background)     CLI Script
         |                              |
         +--> POST token to :3847 ------+
         |                              |
-        |   3. generate.mjs sends      |
-        |      request to Flow API     |
+        |   3. generate.mjs /          |
+        |      generate-video.mjs send |
+        |      requests to Flow API    |
         |      with OAuth + reCAPTCHA  |
         |                              |
-        |   4. signed image URL        |
+        |   4. signed media URL        |
         |      downloaded & saved      |
         |                              |
         |   5. OAuth auto-refreshes    |
@@ -131,7 +155,9 @@ Chrome Extension (background)     CLI Script
         |      (~30 days)              |
 ```
 
-**API endpoint:** `https://aisandbox-pa.googleapis.com/v1/projects/{projectId}/flowMedia:batchGenerateImages`
+**Image endpoint:** `https://aisandbox-pa.googleapis.com/v1/projects/{projectId}/flowMedia:batchGenerateImages`
+
+**Video endpoints:** used by `scripts/generate-video.mjs` for text-to-video and image-to-video generation.
 
 **Auth:** OAuth Bearer token from Google Labs session, auto-refreshed via session cookie
 
@@ -145,7 +171,7 @@ This project follows the **Agent Skills** standard. Copy the folder to your skil
 cp -r flow-proxy ~/.claude/skills/flow-proxy
 ```
 
-The AI agent will automatically discover the skill and use it when you ask to generate images.
+The AI agent will automatically discover the skill and use it when you ask to generate images or videos.
 
 ## Security
 

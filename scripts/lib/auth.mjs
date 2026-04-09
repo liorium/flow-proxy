@@ -18,6 +18,7 @@ let _authResolve = null;
 
 // reCAPTCHA state
 let _recaptchaNeeded = false;
+let _recaptchaAction = 'IMAGE_GENERATION';
 let _recaptchaResolve = null;
 let _recaptchaReject = null;
 let _recaptchaPromise = null; // cached pending promise
@@ -36,6 +37,33 @@ export function readToken() {
 export function saveToken(data) {
   mkdirSync(TOKEN_DIR, { recursive: true });
   writeFileSync(TOKEN_FILE, JSON.stringify(data, null, 2));
+}
+
+export function resolveProjectId(cliProjectId, commandName) {
+  if (cliProjectId) {
+    const data = readToken() || {};
+    if (data.projectId !== cliProjectId) {
+      saveToken({ ...data, projectId: cliProjectId });
+    }
+    return cliProjectId;
+  }
+
+  const data = readToken();
+  if (data?.projectId) return data.projectId;
+
+  console.error(`
+Error: Project ID not found.
+
+Find your project ID:
+  1. Open https://labs.google/fx/tools/flow in Chrome
+  2. Open any project — the URL will look like:
+     https://labs.google/fx/tools/flow/project/YOUR_UUID
+  3. Copy the UUID from the URL
+
+Then run with: node ${commandName} -p "..." --project-id YOUR_UUID
+(Saved automatically for future runs)
+`);
+  process.exit(1);
 }
 
 // ─── Token validation & refresh ───────────────────────────────────────────
@@ -121,10 +149,10 @@ function handleRequest(req, res) {
     return;
   }
 
-  // reCAPTCHA need check (polled by extension background.js)
+  // reCAPTCHA need check (polled by the extension content script on labs.google)
   if (req.method === 'GET' && req.url === '/need-recaptcha') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ needed: _recaptchaNeeded }));
+    res.end(JSON.stringify({ needed: _recaptchaNeeded, action: _recaptchaAction }));
     return;
   }
 
@@ -261,11 +289,12 @@ export async function ensureToken() {
  *
  * Requires the server to be running and Chrome with labs.google tab open.
  */
-export function getRecaptchaToken() {
+export function getRecaptchaToken(action = 'IMAGE_GENERATION') {
   if (_recaptchaPromise) return _recaptchaPromise;
 
   _recaptchaPromise = new Promise((resolve, reject) => {
     _recaptchaNeeded = true;
+    _recaptchaAction = action;
     _recaptchaResolve = resolve;
     _recaptchaReject = reject;
 
