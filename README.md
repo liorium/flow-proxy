@@ -13,7 +13,7 @@ A lightweight CLI tool and AI Agent Skill that generates images and videos using
 - **No dependencies** — just Node.js 18+ and Chrome
 - **Fully automatic auth** — OAuth token + reCAPTCHA handled by Chrome extension
 - **Auto-refresh** — session cookie lasts ~30 days, no hourly re-auth
-- **Image + video generation** — Imagen 4, Nano Banana 2, Nano Banana Pro, Reference-to-Image, Veo, and Veo r2v
+- **Image + video generation** — Imagen 4, Nano Banana 2, Nano Banana Pro, Veo, and Veo r2v
 - **AI Agent Skill** — works with Claude Code, Codex, and other AI agents
 - **Dedicated video CLI included** — `scripts/generate-video.mjs` for Veo / Veo r2v runs
 
@@ -81,11 +81,15 @@ node scripts/generate-video.mjs -m veo-r2v -i ./examples/example-cyberpunk-city.
 | **Imagen 4** | `-m imagen4` | Highest quality, photorealistic (default) |
 | **Nano Banana 2** | `-m banana2` | Latest Nano Banana image generation |
 | **Nano Banana Pro** | `-m banana-pro` | Higher-tier Nano Banana generation |
-| **Reference-to-Image** | `-m r2i` | Style transfer |
-
 ## Model Selection Guide for Agents
 
 Use the following guide when choosing an image model automatically.
+
+### Current implementation status
+
+- **Text-only mode**: validated with **Imagen 4**, **Nano Banana 2**, and **Nano Banana Pro**
+- **Reference-image mode (`--image`)**: validated with **Nano Banana 2** and **Nano Banana Pro**
+- **Imagen 4 + reference-image mode**: currently **not recommended for automatic selection** in this project, because repeated real runs returned `API Error 500: INTERNAL`
 
 ### 1. Text-only prompts (zero-base generation)
 
@@ -100,16 +104,16 @@ Use the following guide when choosing an image model automatically.
 
 - **Nano Banana 2** — best default when the user wants to preserve character identity, facial features, costume language, or a distinctive art style across new scenes.
 - **Nano Banana Pro** — best when the reference composition is good but the output should look more premium, realistic, or physically polished.
-- **Imagen 4** — best when the reference image also needs a precise logical edit, such as changing an object, adding text, or making composition-aware corrections.
-- **Reference-to-Image (`r2i`)** — use when the task is primarily style transfer / image-to-image transformation through the dedicated Flow reference-image path.
+- **Imagen 4** — theoretically the best fit when the reference image also needs a precise logical edit, such as changing an object, adding text, or making composition-aware corrections, **but in this project it is currently experimental in reference-image mode and should not be auto-selected by default**.
+- **Reference image mode** — if the user provides an image, keep the chosen model (`imagen4`, `banana2`, or `banana-pro`) and add the reference image as an input rather than switching to a separate image model.
 
 ### Decision Tree
 
 1. Is exact text rendering required? → **Imagen 4**
 2. Is there a reference image whose character or art style must stay consistent? → **Nano Banana 2**
 3. Does the user want a much more realistic, luxurious, or cinematic reinterpretation of the reference? → **Nano Banana Pro**
-4. Is the prompt extremely complex with many objects and precise logical placement? → **Imagen 4**
-5. Is the goal primarily dedicated style transfer rather than free reinterpretation? → **r2i**
+4. Is the prompt extremely complex with many objects and precise logical placement, but there is **no** reference image? → **Imagen 4**
+5. Is the goal primarily style transfer rather than free reinterpretation? → keep the best-fit validated model and provide a reference image with `--image`
 
 ### Practical Tip
 
@@ -118,12 +122,33 @@ If the user says that **consistency and descriptive accuracy matter more than sp
 - **Nano Banana 2** for character or style continuity
 - **Nano Banana Pro** for visual realism and material quality
 
+### Auto-pick rule for this repo
+
+When choosing automatically in the current implementation:
+
+- **No reference image**
+  - text / layout / logic → **Imagen 4**
+  - style / continuity / concept expansion → **Nano Banana 2**
+  - realism / premium finish → **Nano Banana Pro**
+
+- **Reference image provided**
+  - preserve character / style / composition → **Nano Banana 2**
+  - premium / realistic reinterpretation → **Nano Banana Pro**
+  - **do not auto-pick Imagen 4 with `--image`** unless the user explicitly wants an experiment
+
+### Reference Image Example
+
+```bash
+node scripts/generate.mjs -m banana2 -i ./examples/example-cyberpunk-city.jpg -p "Transform this reference into a rainy neon-night variation"
+```
+
 ## CLI Options
 
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
 | `--prompt` | `-p` | required | Image description (English works best) |
-| `--model` | `-m` | `imagen4` | Model: imagen4, banana2, banana-pro, r2i |
+| `--model` | `-m` | `imagen4` | Model: imagen4, banana2, banana-pro |
+| `--image` | `-i` | optional | Reference image path (enables reference-image mode) |
 | `--count` | `-c` | `1` | Number of images per request (1-4) |
 | `--ratio` | `-r` | `16:9` | Aspect ratio (see below) |
 | `--output` | `-o` | `.` | Output directory |

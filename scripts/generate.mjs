@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
  * Flow Proxy — Image Generator
- * Generate images via Google Flow (Imagen 4, Nano Banana, Reference-to-Image)
+ * Generate images via Google Flow (Imagen 4, Nano Banana 2 / Pro)
  * No API key, no npm install — just Node.js 18+ and Chrome
  */
 
-import { writeFileSync, mkdirSync, existsSync } from 'fs';
+import { writeFileSync, mkdirSync, existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { parseArgs } from 'util';
 import { randomUUID } from 'crypto';
@@ -24,7 +24,6 @@ const MODELS = {
   'banana':      'NARWHAL',
   'banana2':     'NARWHAL',
   'banana-pro':  'GEM_PIX_2',
-  'r2i':         'R2I',
 };
 
 const ASPECT_MAP = {
@@ -40,6 +39,7 @@ const { values } = parseArgs({
     prompt:     { type: 'string',  short: 'p' },
     model:      { type: 'string',  short: 'm', default: 'imagen4' },
     ratio:      { type: 'string',  short: 'r', default: '16:9' },
+    image:      { type: 'string',  short: 'i' },
     output:     { type: 'string',  short: 'o', default: '.' },
     count:      { type: 'string',  short: 'c', default: '1' },
     seed:       { type: 'string',  short: 's' },
@@ -55,8 +55,9 @@ Usage: node generate.mjs -p "prompt" [options]
 
 Options:
   -p, --prompt       Image description (English works best)      [required]
-  -m, --model        Model: imagen4, banana2, banana-pro, r2i    [default: imagen4]
+  -m, --model        Model: imagen4, banana2, banana-pro          [default: imagen4]
   -r, --ratio        Aspect ratio: 1:1, 16:9, 9:16, 4:3, 3:4   [default: 16:9]
+  -i, --image        Reference image path (optional)
   -o, --output       Output directory                            [default: .]
   -c, --count        Number of images per request (1-4)          [default: 1]
   -s, --seed         Random seed (for reproducibility)
@@ -66,8 +67,7 @@ Options:
 Models:
   imagen4      Imagen 4 (highest quality, default)
   banana2      Nano Banana 2
-  banana-pro   Nano Banana Pro
-  r2i          Reference-to-Image (style transfer)`);
+  banana-pro   Nano Banana Pro`);
   process.exit(values.help ? 0 : 1);
 }
 
@@ -99,7 +99,33 @@ function detectImageExtension(buffer, contentType = '') {
   return 'bin';
 }
 
-async function generate(prompt, model, ratio, count, seed, token, projectId, recaptchaToken) {
+async function uploadReferenceImage(imagePath, token, projectId) {
+  const imageBytes = readFileSync(imagePath).toString('base64');
+
+  const res = await fetch(`${ENDPOINT_BASE}/flow/uploadImage`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'Origin': 'https://labs.google',
+    },
+    body: JSON.stringify({
+      clientContext: { projectId, tool: 'PINHOLE' },
+      imageBytes,
+    }),
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(`Image upload failed ${res.status}: ${JSON.stringify(data)}`);
+  }
+
+  const mediaId = data.media?.name;
+  if (!mediaId) throw new Error('No mediaId returned from image upload');
+  return mediaId;
+}
+
+async function generate(prompt, model, ratio, count, seed, token, projectId, recaptchaToken, imageInputs = []) {
   const sessionId = ';' + Date.now();
   const batchId = randomUUID();
   const clientCtx = {
@@ -119,7 +145,7 @@ async function generate(prompt, model, ratio, count, seed, token, projectId, rec
       imageAspectRatio: ASPECT_MAP[ratio] || 'IMAGE_ASPECT_RATIO_SQUARE',
       structuredPrompt: { parts: [{ text: prompt }] },
       seed: seed ?? Math.floor(Math.random() * 2147483647),
-      imageInputs: [],
+      imageInputs,
     })),
   };
 
@@ -205,9 +231,17 @@ async function main() {
     const recaptchaToken = await getRecaptchaToken();
     console.log(' OK');
 
+    let imageInputs = [];
+    if (values.image) {
+      console.log(`Uploading reference image: ${values.image}`);
+      const mediaId = await uploadReferenceImage(values.image, token, projectId);
+      console.log(`Reference media ID: ${mediaId}`);
+      imageInputs = [{ name: mediaId }];
+    }
+
     const images = await generate(
       values.prompt, model, values.ratio, count, seed,
-      token, projectId, recaptchaToken
+      token, projectId, recaptchaToken, imageInputs
     );
 
     const ts = Date.now();
